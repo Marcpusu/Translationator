@@ -1,0 +1,202 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Xml.Linq;
+using System.Data;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Windows.Forms;
+
+namespace Translationator
+{
+    public partial class Translationator : Form
+    {
+        public Translationator()
+        {
+            InitializeComponent();
+        }
+
+        private static void ExtractNames(string sFileToTranslate, string sFileToSave)
+        {
+            StringBuilder sb = new StringBuilder();
+            using (StreamReader sr = new StreamReader(sFileToTranslate))
+            {
+                while (!sr.EndOfStream)
+                {
+                    string line = sr.ReadLine();
+                    if (line.Contains("Global.res_man.GetString") && !line.StartsWith("//"))
+                    {
+                        string[] lststr = line.Split(' ');
+                        foreach (string str in lststr)
+                        {
+                            if (str.Contains("Global.res_man.GetString"))
+                            {
+                                string sText = string.Empty;
+                                if (str.EndsWith(","))
+                                    sText = str.Substring(str.IndexOf(@".GetString(") + ".GetString(".Length + 1, (str.LastIndexOf(@",") - 1) - (str.IndexOf(@".GetString(") + ".GetString(".Length + 1));
+                                else if (str.EndsWith(")"))
+                                    sText = str.Substring(str.IndexOf(@".GetString(") + ".GetString(".Length + 1, (str.LastIndexOf(@",") - 1) - (str.IndexOf(@".GetString(") + ".GetString(".Length + 1));
+
+                                if (sb.ToString().IndexOf(sText) == -1)
+                                {
+                                    sb.AppendLine(sText);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            using (StreamWriter sw = new StreamWriter(sFileToSave))
+            {
+                sw.Write(sb.ToString());
+            }
+        }
+
+        private static void ExtractTranslations(string sTranslationNamesFile, string sTranslationsFile, string sFileToSave)
+        {
+            StringBuilder sb = new StringBuilder();
+            List<string> lstNames = new List<string>();
+            using (StreamReader sr = new StreamReader(sTranslationNamesFile))
+            {
+                while (!sr.EndOfStream) lstNames.Add(sr.ReadLine());
+            }
+
+            XDocument xml = XDocument.Load(sTranslationsFile);
+
+            xml.Root.Descendants("data").Where(x => lstNames.Contains(x.Attribute("name").Value.ToString())).ToList().ForEach(y =>
+            {
+                sb.AppendLine(y.Attribute("name").Value + "#" + (string)y.Element("value"));
+            });
+
+            using (StreamWriter sw = new StreamWriter(sFileToSave, true))
+            {
+                sw.Write(sb.ToString());
+            }
+        }
+
+        private void btnAccio_Click(object sender, System.EventArgs e)
+        {
+            Export();
+        }
+
+        private void Export()
+        {
+            if (txtClase.Text != string.Empty && txtRecursos.Text != string.Empty && txtGuardar.Text != string.Empty)
+            {
+                string sTempFile = Path.Combine(Application.StartupPath, "Temp.txt");
+                try
+                {
+                    ExtractNames(txtClase.Text, sTempFile);
+                    ExtractTranslations(sTempFile, txtRecursos.Text, txtGuardar.Text);
+                    //MessageBox.Show("Success!");
+                    lblLog.Text = "File '" + Path.GetFileName(txtClase.Text) + "' commited successfully.";
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show("ERROR: " + e.Message);
+                }
+            }
+        }
+
+        private void btnClase_Click(object sender, EventArgs e)
+        {
+            openFileDialog.Reset();
+            openFileDialog.Filter = "Class Files (*.cs) | *.cs";
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+                txtClase.Text = openFileDialog.FileName;
+        }
+
+        private void btnRecursos_Click(object sender, EventArgs e)
+        {
+            openFileDialog.Reset();
+            openFileDialog.Filter = "Resources Files (*.resx) | *.resx";
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+                txtRecursos.Text = openFileDialog.FileName;
+        }
+
+        private void btnGuardar_Click(object sender, EventArgs e)
+        {
+            saveFileDialog.Reset();
+            saveFileDialog.Filter = "Text File (*.txt) | *.txt";
+            saveFileDialog.DefaultExt = "txt";
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                txtGuardar.Text = saveFileDialog.FileName;
+        }
+
+        private void btnAccioImport_Click(object sender, EventArgs e)
+        {
+            Import();
+        }
+
+        private void Import()
+        {
+            if (txtRecursosImport.Text != string.Empty && txtTraduccionsImport.Text != string.Empty)
+            {
+                try
+                {
+                    ImportTranslations(txtTraduccionsImport.Text, txtRecursosImport.Text);
+                    lblLogImport.Text = "File '" + Path.GetFileName(txtTraduccionsImport.Text) + "' imported successfully.";
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show("ERROR: " + e.Message);
+                }
+            }
+        }
+
+        private void btnTraduccionsImport_Click(object sender, EventArgs e)
+        {
+            openFileDialog.Reset();
+            openFileDialog.Filter = "Text Files (*.txt) | *.txt";
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+                txtTraduccionsImport.Text = openFileDialog.FileName;
+        }
+
+        private void btnRecursosImport_Click(object sender, EventArgs e)
+        {
+            openFileDialog.Reset();
+            openFileDialog.Filter = "Resources Files (*.resx) | *.resx";
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+                txtRecursosImport.Text = openFileDialog.FileName;
+        }
+
+        private void ImportTranslations(string sTraductionsFile, string sResourcesFile)
+        {
+            XDocument xml = XDocument.Load(sResourcesFile);
+            using (StreamReader sr = new StreamReader(sTraductionsFile))
+            {
+                while (!sr.EndOfStream)
+                {
+                    string sLine = sr.ReadLine();
+                    xml.Root.Descendants("data").Where(x => x.Attribute("name").Value.ToString() == sLine.Split('#')[0].ToString().Trim()).ToList()[0].Element("value").SetValue(sLine.Split('#')[1].ToString().Trim());
+                }
+            }
+            xml.Save(sResourcesFile);
+        }
+
+        private void btnMagic_Click(object sender, EventArgs e)
+        {
+            openFileDialog.Reset();
+            openFileDialog.Multiselect = true;
+            openFileDialog.Filter = "Resources Files (*.resx) | *.resx";
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Magic frm = new Magic(openFileDialog.FileNames, true);
+                frm.Show();
+            }
+        }
+
+        private void btnMagicSlow_Click(object sender, EventArgs e)
+        {
+            openFileDialog.Reset();
+            openFileDialog.Multiselect = true;
+            openFileDialog.Filter = "Resources Files (*.resx) | *.resx";
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                Magic frm = new Magic(openFileDialog.FileNames, false);
+                frm.Show();
+            }
+        }
+    }
+}
