@@ -131,9 +131,13 @@ namespace Translationator
 
         private void dgv_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex != -1 && ((DataGridView)sender).Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString() != string.Empty && e.ColumnIndex > 0)
+            if (e.RowIndex != -1 && ((DataGridView)sender).Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString() != string.Empty && e.ColumnIndex > 0 && ((DataGridView)sender).Rows[e.RowIndex].Cells[0].Value != null && ((DataGridView)sender).Rows[e.RowIndex].Cells[0].Value.ToString() != string.Empty)
             {
                 ModifyRegister(((DataGridView)sender).Columns[e.ColumnIndex].Name, ((DataGridView)sender).Rows[e.RowIndex].Cells[0].Value.ToString(), ((DataGridView)sender).Rows[e.RowIndex].Cells[e.ColumnIndex].Value.ToString());
+            }
+            else
+            {
+                ((DataGridView)sender).Rows[e.RowIndex].Cells[e.ColumnIndex].Value = string.Empty;
             }
         }
 
